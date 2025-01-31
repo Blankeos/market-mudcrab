@@ -1,5 +1,8 @@
 use bevy::prelude::*;
-use bevy_egui::{egui, EguiContext, EguiPlugin};
+use bevy_egui::{
+    egui::{self, RichText},
+    EguiContext, EguiPlugin,
+};
 use futures_util::StreamExt;
 use std::collections::HashMap;
 use tokio::sync::mpsc;
@@ -40,6 +43,7 @@ fn main() {
             .insert_resource(WebSocketConnections {
                 connections: HashMap::new(),
             })
+            .insert_resource(ClearColor(Color::srgb_u8(18, 25, 29)))
             .insert_resource(PriceUpdates::default())
             .insert_resource(RuntimeHandle {
                 runtime: runtime_handle,
@@ -52,7 +56,7 @@ fn main() {
 }
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2d);
+    commands.spawn(Camera2d::default());
 }
 
 fn window_system(
@@ -74,8 +78,54 @@ fn window_system(
 
         egui::Window::new(&window_id)
             .default_pos(window.pos)
+            .title_bar(false)
             .resizable(true)
+            .frame(egui::Frame {
+                inner_margin: egui::Margin::same(8.0),
+                fill: egui::Color32::from_rgb(18, 25, 29), // Background color
+                stroke: egui::Stroke::new(2.5, egui::Color32::from_rgb(10, 17, 21)), // Border
+                ..Default::default()
+            })
+            .collapsible(false)
             .show(ctx.get_mut(), |ui| {
+                egui::TopBottomPanel::top(format!("{}-top-bottom-panel", &window_id))
+                    .frame(egui::Frame {
+                        fill: egui::Color32::from_rgb(18, 25, 29), // Background color
+                        inner_margin: egui::Margin {
+                            bottom: 8.0,
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    })
+                    .show_inside(ui, |_ui| {
+                        _ui.horizontal(|__ui| {
+                            __ui.spacing_mut().item_spacing.x = 10.0; // Space between elements
+
+                            // Title on the left
+                            __ui.label(
+                                egui::RichText::new("Orderbook")
+                                    .color(egui::Color32::from_rgb(255, 255, 255)),
+                            );
+
+                            // Push close button to the right
+                            __ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    if ui.add_sized([10.0, 10.0], egui::Label::new("X")).clicked() {
+                                        should_close = true;
+                                    }
+                                    // if ui.button("❌").clicked() {
+                                    //     should_close = true;
+                                    // }
+                                },
+                            );
+                        });
+                    });
+
+                ui.collapsing("Settings", |contents| {
+                    contents.label(format!("Bichoso. {}", 1));
+                });
+
                 ui.label(format!(
                     "Price: {}",
                     price_updates.prices.get(&window_id).unwrap_or(&0.0)
@@ -125,27 +175,27 @@ fn spawn_price_window(
 
     // Spawn the WebSocket connection using the runtime handle
     runtime_handle.runtime.spawn(async move {
-        let url = "wss://stream.binance.com:9443/ws/btcusdt@trade";
+        // let url = "wss://stream.binance.com:9443/ws/btcusdt@trade";
 
-        let (ws_stream, _) = tokio_tungstenite::connect_async(url).await.unwrap();
-        let (_, mut read) = ws_stream.split();
+        // let (ws_stream, _) = tokio_tungstenite::connect_async(url).await.unwrap();
+        // let (_, mut read) = ws_stream.split();
 
-        loop {
-            tokio::select! {
-                msg = read.next() => {
-                    match msg {
-                        Some(Ok(msg)) => {
-                            println!("Received: {}", msg);
-                        }
-                        _ => break,
-                    }
-                }
-                _ = rx.recv() => {
-                    println!("Closing connection for {}", _window_id);
-                    break;
-                }
-            }
-        }
+        // loop {
+        //     tokio::select! {
+        //         msg = read.next() => {
+        //             match msg {
+        //                 Some(Ok(msg)) => {
+        //                     println!("Received: {}", msg);
+        //                 }
+        //                 _ => break,
+        //             }
+        //         }
+        //         _ = rx.recv() => {
+        //             println!("Closing connection for {}", _window_id);
+        //             break;
+        //         }
+        //     }
+        // }
     });
 
     commands.spawn(PriceWindow {
